@@ -1,11 +1,10 @@
 # Standard imports
 import sys
 import operator
-from datetime import datetime
 
 class TicTacToe:
 	
-	def __init__(self, players=0):
+	def __init__(self, players):
 		"""
 		:args: players - dictates gametype (0 --> ai v. ai, 1 --> user 
 			v. ai, 2 --> user v. user
@@ -56,9 +55,11 @@ class TicTacToe:
 			
 	def __change_player_type(self):
 		""" Switches player type based on number of players """
-		# don't change from init in two-player/no-player games
-		if (self.players in (0, 2)): return False
-		if self.player_type == 'manual':
+		if self.players == 0:
+			self.player_type = 'computer'
+		elif self.players == 2:
+			self.player_type = 'manual'
+		elif self.player_type == 'manual':
 			self.player_type = 'computer'
 		else:
 			self.player_type = 'manual'
@@ -81,75 +82,77 @@ class TicTacToe:
 			if (len(owned_cells) == 3): return True
 		return False
 		
+	def return_open_cells(self, board):
+		""" Returns open cells on the board """
+		return [k for k, v in board.items() if v == 0]
+	
 	def manual_move(self):
 		""" Prompts user for input and executes the move of reprompts 
 		the user """
 		move = False
 		while True:
-			x = int(input('x: '))
-			y = int(input('y: '))
-			board_index = x + (y * 3)
-			if self.board[board_index] == 0:
-				self.board[board_index] = self.current_player
-				break
+			try:
+				x = int(input('x: '))
+				y = int(input('y: '))
+				board_index = x + (y * 3)
+				if self.board[board_index] == 0:
+					self.board[board_index] = self.current_player
+					return True
+			except (ValueError, KeyError, UnboundLocalError) as e:
+				return e
 			
-	def return_open_cells(self, board):
-		""" Returns open cells on the board """
-		return [k for k, v in board.items() if v == 0]
-			
-	def computer_move(self, minimax=False):
+	def computer_move(self):
 		""" Calls the minimax function to determine computer move """
-		ai_move = self.max_move(self.board, self.current_player, 
-			minimax=minimax)
+		ai_move = self.max_move(self.board, self.current_player)
 		self.board[ai_move[0]] = self.current_player
 	
-	def max_move(self, board, current_player, alpha=-10, beta=10, 
-		minimax=False):
+	def max_move(self, board, current_player, alpha=-10, beta=10,
+		depth=0):
 		move_scores = dict.fromkeys(self.return_open_cells(board))
 		
 		for move in move_scores.keys():
 			current_board = board.copy()
 			current_board[move] = current_player
 			if self.check_for_win(current_board, current_player):
-				score = 10
+				score = 10 - depth
+				return [move, score]
 			elif self.check_for_tie(current_board):
-				score = 0
+				score = 0 - depth
 			else:
 				calc_move = self.min_move(current_board, 
-					current_player * -1, alpha, beta, minimax)
+					current_player * -1, alpha, beta, depth+1)
 				score = calc_move[1]
-				if score >= beta and minimax == False: return calc_move
-				
-			if score > alpha:
-				alpha = score
+			
+			alpha = max(alpha, score)
+			if beta < alpha: return [move, score]
 				
 			move_scores[move] = score
-				
+
 		best_move = list(max(move_scores.items(), 
 			key=operator.itemgetter(1)))
 			
 		return best_move
 		
-	def min_move(self, board, current_player, alpha=-10, beta=10,
-		minimax=False):
+	def min_move(self, board, current_player, alpha=-10, beta=10, 
+		depth=0):
 		move_scores = dict.fromkeys(self.return_open_cells(board))
 		
 		for move in move_scores.keys():
 			current_board = board.copy()
 			current_board[move] = current_player
 			if self.check_for_win(current_board, current_player):
-				score = -10
+				score = -10 + depth
+				return [move, score]
 			elif self.check_for_tie(current_board):
-				score = 0
+				score = 0 + depth
 			else:
 				calc_move = self.max_move(current_board, 
-					current_player * -1, alpha, beta, minimax)
+					current_player * -1, alpha, beta, depth+1)
 				score = calc_move[1]
-				if score <= alpha and minimax == False: return calc_move
 				
-			if score < beta:
-				beta = score
-					
+			beta = min(beta, score)
+			if beta < alpha: return [move, score]
+			
 			move_scores[move] = score
 				
 		best_move = list(min(move_scores.items(), 
@@ -157,14 +160,14 @@ class TicTacToe:
 			
 		return best_move
 		
-	def gameplay(self, explicit=True):
+	def play(self, verbose=True):
 		""" Plays the game, calling functions of this class based on the
 		current player_type and name of function """
 		self.board = self.init_board()
 		gameover = ''
 		while gameover == '':
 			getattr(self, f'{self.player_type}_move')()
-			if (explicit): print(self)
+			if verbose: print(self)
 			# Return current player if win
 			if self.check_for_win(self.board, self.current_player):
 				return self.current_player
@@ -174,4 +177,6 @@ class TicTacToe:
 			self.change_player()
 		
 
-b = TicTacToe()
+if __name__ == '__main__':
+	game = TicTacToe(players=0)
+	game.play()
